@@ -5,6 +5,7 @@ module Language.Haskell.Tools.BackendGHC.Modules where
 
 import Control.Monad.Reader
 import Control.Reference hiding (element)
+import Data.Char (isSpace)
 import Data.Generics.Uniplate.Data ()
 import Data.Char (isLetter)
 import Data.List as List
@@ -117,7 +118,7 @@ trfFilePragmas = do pragmas <- asks pragmaComms
 trfLanguagePragma :: Located String -> Trf (Ann AST.UFilePragma (Dom r) RangeStage)
 trfLanguagePragma lstr@(L l _) = annLocNoSema (pure l) (AST.ULanguagePragma <$> makeList ", " (pure $ srcSpanStart $ getLoc $ last pragmaElems)
                                                                                               (mapM (trfLocNoSema (pure . AST.ULanguageExtension)) extensions))
-  where pragmaElems = splitLocated lstr
+  where pragmaElems = splitLocatedOn (\c -> isSpace c || c == ',') lstr
         extensions = filter ((\sp -> srcSpanStart sp /= srcSpanEnd sp) . getLoc)
                        $ map (removeEnd . removeLang . removeStart) pragmaElems
         removeStart pr@(L l txt) = if "{-#"      `isPrefixOf` txt then L (updateStart (updateCol (+3)) l) (drop 3 txt) else pr

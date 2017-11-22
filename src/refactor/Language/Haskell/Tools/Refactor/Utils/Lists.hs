@@ -5,8 +5,8 @@ module Language.Haskell.Tools.Refactor.Utils.Lists where
 
 import Control.Applicative ((<$>))
 import Control.Reference
-import Data.List (findIndices)
 import Data.Char (isSpace)
+import Data.List (findIndices)
 
 import Language.Haskell.Tools.AST
 import Language.Haskell.Tools.PrettyPrint.Prepare
@@ -113,12 +113,10 @@ zipWithSeparators (AnnListG (NodeInfo _ src) elems)
   where seps = src ^. srcTmpSeparators
 
 -- sortList :: Ord a => (Ann e dom -> a) -> AnnList e dom -> AnnList e dom
--- sortList comp (AnnListG annot elems) 
+-- sortList comp (AnnListG annot elems)
 --   = AnnListG ( .- permuteList permute $ annot) sortedElems
 --   where (permute, sortedElems) = unzip (sortBy (comp . snd)) indElems
 --         indElems = zip [0..] elems
--- 
+--
 -- permuteList :: [Int] -> [a] -> [a]
 -- permuteList permute = map snd . sortBy fst . zip permute
- 
- 

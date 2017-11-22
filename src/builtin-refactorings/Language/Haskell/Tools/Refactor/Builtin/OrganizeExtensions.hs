@@ -1,4 +1,4 @@
-{-# LANGUAGE ConstraintKinds, FlexibleContexts, RankNTypes, TupleSections, TypeFamilies #-}
+{-# LANGUAGE ConstraintKinds, FlexibleContexts, RankNTypes, TupleSections, TypeFamilies, LambdaCase #-}
 
 module Language.Haskell.Tools.Refactor.Builtin.OrganizeExtensions
   ( module Language.Haskell.Tools.Refactor.Builtin.OrganizeExtensions
@@ -7,18 +7,18 @@ module Language.Haskell.Tools.Refactor.Builtin.OrganizeExtensions
 
 import Language.Haskell.Tools.Refactor.Builtin.ExtensionOrganizer.ExtMonad
 import Language.Haskell.Tools.Refactor.Builtin.ExtensionOrganizer.TraverseAST
-import Language.Haskell.Tools.Refactor.Builtin.ExtensionOrganizer.Utils.SupportedExtensions
+import Language.Haskell.Tools.Refactor.Builtin.ExtensionOrganizer.Utils.SupportedExtensions (unregularExts, isSupported, fullyHandledExtensions)
 
 import Language.Haskell.Tools.Refactor hiding (LambdaCase)
 import Language.Haskell.Tools.Refactor.Utils.Extensions (expandExtension)
 
-import GHC
+import GHC (Ghc(..))
 
-import Data.Char
-import Data.List
-import Data.Function (on)
-import qualified Data.Map.Strict as SMap
 import Control.Reference
+import Data.Char (isAlpha)
+import Data.Function (on)
+import Data.List
+import qualified Data.Map.Strict as SMap (keys, empty)
 
 -- NOTE: When working on the entire AST, we should build a monad,
 --       that will will avoid unnecessary checks.
@@ -44,10 +44,16 @@ tryOut = tryRefactor (localRefactoring . const organizeExtensions)
 organizeExtensions :: ExtDomain dom => LocalRefactoring dom
 organizeExtensions moduleAST = do
   exts <- liftGhc $ reduceExtensions moduleAST
-  let newPragmas = if null exts then []
-                                else [mkLanguagePragma . map show $ exts]
-  return $ (filePragmas & annListElems .= newPragmas) moduleAST
+  let isRedundant e = extName `notElem` foundExts && extName `elem` handledExts
+        where extName = unregularExts (e ^. langExt)
+      handledExts = map show fullyHandledExtensions
+      foundExts = map show exts
 
+  -- remove unused extensions (only those that are fully handled)
+  filePragmas & annList & lpPragmas !~ filterListSt (not . isRedundant)
+        -- remove empty {-# LANGUAGE #-} pragmas
+    >=> filePragmas !~ filterListSt (\case LanguagePragma (AnnList []) -> False; _ -> True)
+    $ moduleAST
 
 -- | Reduces default extension list (keeps unsupported extensions)
 reduceExtensions :: ExtDomain dom => UnnamedModule dom -> Ghc [Extension]
@@ -87,13 +93,10 @@ expandDefaults = nub . concatMap expandExtension . collectDefaultExtensions
 
 -- | Collects extensions enabled by default
 collectDefaultExtensions :: UnnamedModule dom -> [Extension]
-collectDefaultExtensions = map toExt . fromFragments . getExtensions
+collectDefaultExtensions = map toExt . getExtensions
   where
   getExtensions :: UnnamedModule dom -> [String]
   getExtensions = flip (^?) (filePragmas & annList & lpPragmas & annList & langExt)
-
-  fromFragments :: [String] -> [String]
-  fromFragments = filter ((>1) . length) . groupBy ((&&) `on` isAlpha) . concat
 
 toExt :: String -> Extension
 toExt str = case map fst . reads . unregularExts . takeWhile isAlpha $ str of
