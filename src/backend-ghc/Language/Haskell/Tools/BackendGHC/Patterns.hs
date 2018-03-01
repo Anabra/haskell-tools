@@ -33,8 +33,9 @@ trfPattern (L l (ConPatIn name (RecCon (HsRecFields flds _)))) | any ((l ==) . g
       let (fromWC, notWC) = partition ((l ==) . getLoc) flds
       normalFields <- mapM (trfLocNoSema trfPatternField') notWC
       wildc <- annLocNoSema (tokenLocBack AnnDotdot) (AST.UFieldWildcardPattern <$> annCont (createImplicitFldInfo (unLoc . (\(VarPat n) -> n) . unLoc) (map unLoc fromWC)) (pure AST.FldWildcard))
-      annLocNoSema (pure l) (AST.URecPat <$> trfName name <*> makeNonemptyList ", " (pure (normalFields ++ [wildc])))
-trfPattern p = trfLocNoSema trfPattern' (correctPatternLoc p)
+      annLoc (pure . PreTypeInfo $ l) (pure l) (AST.URecPat <$> trfName name <*> makeNonemptyList ", " (pure (normalFields ++ [wildc])))
+trfPattern p = trfLoc trfPattern' (pure . PreTypeInfo $ cLoc) cLPat
+  where cLPat@(L cLoc _) = correctPatternLoc p
 
 -- | Locations for right-associative infix patterns are incorrect in GHC AST
 correctPatternLoc :: Located (Pat n) -> Located (Pat n)

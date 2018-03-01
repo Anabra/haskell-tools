@@ -103,7 +103,7 @@ getDeps mod = do
   case lookupIfaceByModule (hsc_dflags env) (hsc_HPT env) (eps_PIT eps) mod of
     Just ifc -> (mod :) <$> mapM (liftIO . getModule env . fst) (dep_mods (mi_deps ifc))
     Nothing -> return [mod]
-  where getModule env modName = do 
+  where getModule env modName = do
           res <- findHomeModule env modName
           case res of Found _ m -> return m
                       _ -> case lookupPluginModuleWithSuggestions (hsc_dflags env) modName Nothing of
@@ -394,10 +394,17 @@ annCont sema = annLoc sema (asks contRange)
 annContNoSema :: SemanticInfo (Dom n) e ~ NoSemanticInfo => Trf (e (Dom n) RangeStage) -> Trf (Ann e (Dom n) RangeStage)
 annContNoSema = annCont (pure mkNoSemanticInfo)
 
--- | Annotates the element with the same annotation that is on the other element
+-- | Applies a function to the given AST element,
+-- then annotates the new element with the same annotation that was on the other element.
 copyAnnot :: SemanticInfo (Dom n) a ~ SemanticInfo (Dom n) b
                => (Ann a (Dom n) RangeStage -> b (Dom n) RangeStage) -> Trf (Ann a (Dom n) RangeStage) -> Trf (Ann b (Dom n) RangeStage)
 copyAnnot f at = (\(Ann i a) -> Ann i (f (Ann i a))) <$> at
+
+-- | Applies a function to the given AST element,
+-- then annotates the new element with the same source annotation that is on the other element,
+-- but gives it a new semantic annotation.
+setSemaAnnot :: (Ann a (Dom n) RangeStage -> b (Dom n) RangeStage) -> SemanticInfo (Dom n) b -> Trf (Ann a (Dom n) RangeStage) -> Trf (Ann b (Dom n) RangeStage)
+setSemaAnnot f sema at = (\ann@(Ann (NodeInfo _ src) e) -> Ann (NodeInfo sema src) (f ann)) <$> at
 
 -- | Combine source spans into one that contains them all
 foldLocs :: [SrcSpan] -> SrcSpan

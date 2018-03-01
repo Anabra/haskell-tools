@@ -103,7 +103,7 @@ trfDeclsGroup g@(HsGroup vals splices tycls derivs fixities defaults foreigns wa
                                             [] -> convertionProblem "getDeclsToInsert: empty scope"
        where replaceNamesInDecls :: [GHC.Name] -> Ann AST.UDecl (Dom RdrName) RangeStage -> GHC.Ghc (Ann AST.UDecl (Dom r) RangeStage)
              replaceNamesInDecls locals = AST.semaTraverse $
-                AST.SemaTrf (pure . (AST.nameInfo .- findName)) pure pure (pure . fmap findName) pure pure pure
+                AST.SemaTrf (pure . (AST.nameInfo .- findName)) pure pure (pure . fmap findName) pure pure pure pure
                where findName rdr = fromGHCName $ fromMaybe (convProblem $ "Data definition name not found: " ++ showSDocUnsafe (ppr rdr)
                                                                              ++ ", locals: " ++ (concat $ intersperse ", " $ map (showSDocUnsafe . ppr) locals))
                                                 $ find ((occNameString (rdrNameOcc rdr) ==) . occNameString . nameOccName) locals

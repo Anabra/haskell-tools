@@ -12,10 +12,26 @@ import Language.Haskell.Tools.AST.Representation.Exprs as AST (UFieldWildcard, U
 import Language.Haskell.Tools.AST.Representation.Modules as AST (UImportDecl, UModule)
 import Language.Haskell.Tools.AST.Representation.Names as AST (UName(..), UQualifiedName)
 import Language.Haskell.Tools.AST.Representation.Literals as AST (ULiteral)
+import Language.Haskell.Tools.AST.Representation.Patterns as AST (UPattern)
 import Language.Haskell.Tools.AST.SemaInfoTypes as AST
 
 semanticsLitType :: Ann ULiteral IdDom st -> GHC.Type
 semanticsLitType lit = lit ^. annotation & semanticInfo & literalType
+
+-- * Information about types
+
+-- | Domains that have semantic information for types
+type HasTypeInfo dom = (Domain dom, HasTypeInfo' (SemanticInfo dom UPattern))
+
+-- | Infos that may have a type that can be extracted
+class HasTypeInfo' si where
+  semanticsType :: si -> GHC.Type
+
+instance HasTypeInfo' TypeInfo where
+  semanticsType = (^. typeType)
+
+instance HasTypeInfo dom => HasTypeInfo' (Ann UPattern dom st) where
+  semanticsType = semanticsType . (^. annotation&semanticInfo)
 
 -- * Information about names
 

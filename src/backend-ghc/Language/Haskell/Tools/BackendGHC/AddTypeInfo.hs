@@ -11,6 +11,7 @@ import Name as GHC hiding (varName)
 import OccName as GHC (OccName, mkDataOcc)
 import SrcLoc as GHC
 import TcEvidence as GHC (EvBind(..), TcEvBinds(..))
+import TcHsSyn as GHC (hsLPatType)
 import Type as GHC (Type, mkTyVarTy, mkTyConTy)
 import TysWiredIn as GHC (starKindTyCon)
 import UniqDFM as GHC (eltsUDFM)
@@ -31,6 +32,7 @@ import Data.Maybe (Maybe(..), fromMaybe, catMaybes)
 import Language.Haskell.Tools.AST as AST
 import Language.Haskell.Tools.AST.SemaInfoTypes as AST
 import Language.Haskell.Tools.BackendGHC.GHCUtils (getTopLevelId)
+import Language.Haskell.Tools.BackendGHC.Patterns (correctPatternLoc)
 import Language.Haskell.Tools.BackendGHC.Utils (ConvertionProblem(..), forceElements, convProblem)
 
 addTypeInfos :: LHsBinds Id -> Ann AST.UModule (Dom GHC.Name) RangeStage -> Ghc (Ann AST.UModule IdDom RangeStage)
@@ -56,7 +58,7 @@ addTypeInfos bnds mod = do
                                                  ((_,id):more) -> do put (none ++ more)
                                                                      return $ createCName (AST.semanticsScope ni) (AST.semanticsDefining ni) id
                 _ -> convProblem "addTypeInfos: Cannot access a the semantics of a name.")
-      pure fetchLitType (traverse (lift . getType)) (traverse (lift . getType)) pure
+      pure fetchLitType (traverse (lift . getType)) (traverse (lift . getType)) pure fetchType
         pure) mod) (extractSigIds bnds ++ extractSigBindIds bnds)
   where locMapping = Map.fromList $ map (\(L l id) -> (l, id)) $ extractExprIds bnds
         getType' ut name = fromMaybe (mkVanillaGlobal name ut) <$> ((<|> Map.lookup name ids) <$> getTopLevelId name)
@@ -64,6 +66,16 @@ addTypeInfos bnds mod = do
 
         extractTypes :: LHsBinds Id -> [Id]
         extractTypes = concatMap universeBi . bagToList
+
+        fetchType :: Monad m => PreTypeInfo -> m TypeInfo
+        fetchType (RealTypeInfo t) = return $ TypeInfo t
+        fetchType (PreTypeInfo sp) = return $ TypeInfo $ fromMaybe (convProblem $ "cannot lookup type of element at: " ++ shortShowSpanWithFile sp) $ lookup sp decompedPatterns
+
+        decompedPatterns :: [(SrcSpan, Type)]
+        decompedPatterns = map ((,) <$> getLoc <*> GHC.hsLPatType) lPats
+          where
+            lPats :: [LPat Id]
+            lPats = map correctPatternLoc . concatMap universeBi . bagToList $ bnds
 
         fetchLitType :: Monad m => PreLiteralInfo -> m LiteralInfo
         fetchLitType (RealLiteralInfo t) = return $ LiteralInfo t
@@ -84,7 +96,7 @@ addTypeInfos bnds mod = do
                 patLits :: [LPat Id]
                 patLits = concatMap universeBi . bagToList $ bnds
 
-                decompPatLit (L loc (NPat llit _ _ _)) = Just (loc, ol_type . unLoc $ llit)
+                decompPatLit (L loc (NPat _ _ _ ty)) = Just (loc, ty)
                 decompPatLit x = Nothing
 
 

@@ -13,7 +13,11 @@ tryItOut :: String -> String -> IO ()
 tryItOut = tryRefactor (localRefactoring . helloRefactor)
 
 helloRefactor :: RealSrcSpan -> LocalRefactoring
-helloRefactor sp = return . (nodesContained sp .- helloExpr)
+helloRefactor sp = return . (nodesContained sp .- showPatType)
 
 helloExpr :: Expr -> Expr
-helloExpr e = trace ("\n### Hello: " ++ prettyPrint e) $ e
+helloExpr e = trace ("\n### Hello: " ++ prettyPrint e) e
+
+showPatType :: Pattern -> Pattern
+showPatType p@(LitPat lit) = trace ("\n" ++ prettyPrint p ++ " :: " ++ (showOutputable . semanticsLitType $ lit)) p
+showPatType p = trace ("\n" ++ prettyPrint p ++ " :: " ++ (showOutputable . semanticsType $ p)) p

@@ -26,6 +26,7 @@ import Language.Haskell.Tools.BackendGHC.Patterns (trfPattern)
 import Language.Haskell.Tools.BackendGHC.Types (trfType)
 import Language.Haskell.Tools.BackendGHC.Utils
 
+import Language.Haskell.Tools.AST.SemaInfoTypes (PreTypeInfo(..))
 import Language.Haskell.Tools.AST (Ann, AnnMaybeG, AnnListG, Dom, RangeStage)
 import qualified Language.Haskell.Tools.AST as AST
 
@@ -33,16 +34,18 @@ trfBind :: TransformName n r => Located (HsBind n) -> Trf (Ann AST.UValueBind (D
 trfBind = trfLocNoSema trfBind'
 
 trfBind' :: TransformName n r => HsBind n -> Trf (AST.UValueBind (Dom r) RangeStage)
--- A value binding with a strcitness annotation
-trfBind' (FunBind { fun_id = id, fun_matches = MG { mg_alts = L _ [L _ (Match { m_ctxt = FunRhs { mc_strictness = SrcStrict }, m_pats = [], m_grhss = GRHSs [L _ (GRHS [] expr)] (L _ locals) })]} })
+-- A value binding with a strictness annotation
+trfBind' FunBind { fun_id = id, fun_matches = MG { mg_alts = L _ [L _ Match { m_ctxt = FunRhs { mc_strictness = SrcStrict }, m_pats = [], m_grhss = GRHSs [L _ (GRHS [] expr)] (L _ locals) }]} }
   = do bangLoc <- focusBeforeLoc (srcSpanStart $ getLoc id) $ tokenLoc AnnBang
-       AST.USimpleBind <$> annLocNoSema (pure $ combineSrcSpans bangLoc (getLoc id))
-                             (AST.UBangPat <$> copyAnnot AST.UVarPat (define $ trfName id))
+       let fullBangLoc = combineSrcSpans bangLoc idLoc
+           idLoc = getLoc id
+       AST.USimpleBind <$> annLoc (pure . PreTypeInfo $ fullBangLoc) (pure fullBangLoc)
+                             (AST.UBangPat <$> setSemaAnnot AST.UVarPat (PreTypeInfo idLoc) (define $ trfName id))
                        <*> addEmptyScope (addToScope locals (annLocNoSema (combineSrcSpans (getLoc expr) <$> tokenLoc AnnEqual) (AST.UUnguardedRhs <$> trfExpr expr)))
                        <*> addEmptyScope (trfWhereLocalBinds (getLoc expr) locals)
 -- A value binding (not a function)
-trfBind' (FunBind { fun_id = id, fun_matches = MG { mg_alts = L _ [L _ (Match { m_pats = [], m_grhss = GRHSs [L _ (GRHS [] expr)] (L _ locals) })]} })
-  = AST.USimpleBind <$> copyAnnot AST.UVarPat (define $ trfName id)
+trfBind' FunBind { fun_id = id, fun_matches = MG { mg_alts = L _ [L _ Match { m_pats = [], m_grhss = GRHSs [L _ (GRHS [] expr)] (L _ locals) }]} }
+  = AST.USimpleBind <$> setSemaAnnot AST.UVarPat (PreTypeInfo . getLoc $ id) (define $ trfName id)
                     <*> addEmptyScope (addToScope locals (annLocNoSema (combineSrcSpans (getLoc expr) <$> tokenLoc AnnEqual) (AST.UUnguardedRhs <$> trfExpr expr)))
                     <*> addEmptyScope (trfWhereLocalBinds (getLoc expr) locals)
 trfBind' (FunBind id (MG (unLoc -> matches) _ _ _) _ _ _)
@@ -79,8 +82,8 @@ trfMatchLhs name fb pats
        args <- mapM trfPattern pats
        let (n, isInfix) = case fb of FunRhs n inf _ -> (n, inf == Infix)
                                      _ -> let token = if isSymOcc (occName name) && isGoodSrcSpan infixLoc then infixLoc else implicitIdLoc
-                                           in (L token name, length pats > 0 && srcSpanStart token >= srcSpanEnd (getLoc (pats !! 0)))
-       annLocNoSema (mkSrcSpan <$> atTheStart <*> (pure closeLoc)) $
+                                           in (L token name, not (null pats) && srcSpanStart token >= srcSpanEnd (getLoc . head $ pats))
+       annLocNoSema (mkSrcSpan <$> atTheStart <*> pure closeLoc) $
         case (args, isInfix) of
            (left:right:rest, True) -> AST.UInfixLhs left <$> define (trfOperator n) <*> pure right <*> makeList " " (pure closeLoc) (pure rest)
            _                       -> AST.UNormalLhs <$> define (trfName n) <*> makeList " " (pure closeLoc) (pure args)
@@ -134,14 +137,14 @@ trfIpBind :: TransformName n r => Located (IPBind n) -> Trf (Ann AST.ULocalBind 
 trfIpBind = trfLocNoSema $ \case
   IPBind (Left (L l ipname)) expr
     -> AST.ULocalValBind
-         <$> (annContNoSema $ AST.USimpleBind <$> focusOn l (annContNoSema (AST.UVarPat <$> define (trfImplicitName ipname)))
-                                              <*> annFromNoSema AnnEqual (AST.UUnguardedRhs <$> trfExpr expr)
-                                              <*> nothing " " "" atTheEnd)
+         <$> annContNoSema (AST.USimpleBind <$> focusOn l (annCont (pure . PreTypeInfo $ l) (AST.UVarPat <$> define (trfImplicitName ipname)))
+                                            <*> annFromNoSema AnnEqual (AST.UUnguardedRhs <$> trfExpr expr)
+                                            <*> nothing " " "" atTheEnd)
   IPBind (Right _) _ -> convertionProblem "trfIpBind: called on typechecked AST"
 
 trfLocalSig :: TransformName n r => Located (Sig n) -> Trf (Ann AST.ULocalBind (Dom r) RangeStage)
 trfLocalSig = trfLocNoSema $ \case
-  ts@(TypeSig {}) -> AST.ULocalSignature <$> annContNoSema (trfTypeSig' ts)
+  ts@TypeSig{} -> AST.ULocalSignature <$> annContNoSema (trfTypeSig' ts)
   (FixSig fs) -> AST.ULocalFixity <$> annContNoSema (trfFixitySig fs)
   (InlineSig name prag) -> AST.ULocalInline <$> trfInlinePragma name prag
   d -> unhandledElement "local signature" d
@@ -159,7 +162,7 @@ trfFixitySig (FixitySig names (Fixity _ prec dir))
   = do precLoc <- tokenLoc AnnVal -- the precedence token or one of the names
        AST.UFixitySignature <$> transformDir dir
                             <*> (if isGoodSrcSpan precLoc && all (srcSpanEnd precLoc <) (map (srcSpanStart . getLoc) names)
-                                   then makeJust <$> (annLocNoSema (return precLoc) $ pure $ AST.Precedence prec)
+                                   then makeJust <$> annLocNoSema (return precLoc) (pure . AST.Precedence $ prec)
                                                                                          -- names cannot be empty
                                    else nothing "" " " (return $ srcSpanStart $ getLoc $ head names))
                             <*> (nonemptyAnnList . nubBy ((==) `on` AST.getRange) <$> mapM trfOperator names)

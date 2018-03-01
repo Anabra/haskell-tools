@@ -122,8 +122,8 @@ semanticsTypeSynRhs :: GhcMonad m => Type -> MaybeT m GHC.Type
 semanticsTypeSynRhs ty = (liftMaybe . nameFromType $ ty) >>= lookupTypeSynRhs
 
 -- | Converts a global Haskell Tools type to a GHC type
-semanticsType :: GhcMonad m => Type -> MaybeT m GHC.Type
-semanticsType ty = (liftMaybe . nameFromType $ ty) >>= lookupTypeFromGlobalName
+semanticsTypeFromSig :: GhcMonad m => Type -> MaybeT m GHC.Type
+semanticsTypeFromSig ty = (liftMaybe . nameFromType $ ty) >>= lookupTypeFromGlobalName
 
 -- | Extracts the name of a type
 -- In case of a type application, it finds the type being applied

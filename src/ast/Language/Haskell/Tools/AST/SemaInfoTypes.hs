@@ -3,12 +3,12 @@
 module Language.Haskell.Tools.AST.SemaInfoTypes
   ( -- types
     NoSemanticInfo, ScopeInfo, NameInfo, CNameInfo, ModuleInfo, ImportInfo, ImplicitFieldInfo
-  , Scope, UsageSpec(..), LiteralInfo(..), PreLiteralInfo(..)
+  , Scope, UsageSpec(..), LiteralInfo(..), PreLiteralInfo(..), TypeInfo(..), PreTypeInfo(..)
     -- references
   , exprScopedLocals, nameScopedLocals, nameIsDefined, nameInfo, ambiguousName, nameLocation
   , implicitName, cnameScopedLocals, cnameIsDefined, cnameInfo, cnameFixity
   , defModuleName, defDynFlags, defIsBootModule, implicitNames, importedModule, availableNames
-  , importedNames, implicitFieldBindings, prelTransMods, importTransMods, literalType
+  , importedNames, implicitFieldBindings, prelTransMods, importTransMods, literalType, typeType
     -- creator functions
   , mkNoSemanticInfo, mkScopeInfo, mkNameInfo, mkAmbiguousNameInfo, mkImplicitNameInfo, mkCNameInfo
   , mkModuleInfo, mkImportInfo, mkImplicitFieldInfo
@@ -64,6 +64,13 @@ data ScopeInfo = ScopeInfo { _exprScopedLocals :: Scope
 -- | Creates the information about the definitions in scope
 mkScopeInfo :: Scope -> ScopeInfo
 mkScopeInfo = ScopeInfo
+
+data PreTypeInfo = RealTypeInfo { _realTypeType :: Type }
+                 | PreTypeInfo  { _preTypeLoc   :: SrcSpan }
+  deriving Data
+
+data TypeInfo = TypeInfo { _typeType :: Type }
+  deriving Data
 
 data PreLiteralInfo = RealLiteralInfo { _realLiteralType :: Type
                                       }
@@ -195,3 +202,4 @@ makeReferences ''ModuleInfo
 makeReferences ''ImportInfo
 makeReferences ''ImplicitFieldInfo
 makeReferences ''LiteralInfo
+makeReferences ''TypeInfo
