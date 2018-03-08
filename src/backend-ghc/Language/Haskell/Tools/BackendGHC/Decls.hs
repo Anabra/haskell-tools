@@ -36,7 +36,9 @@ import Language.Haskell.Tools.BackendGHC.Utils
 
 import Language.Haskell.Tools.AST (Ann, AnnMaybeG, AnnListG, getRange, Dom, RangeStage)
 import qualified Language.Haskell.Tools.AST as AST
-import Language.Haskell.Tools.AST.SemaInfoTypes as AST (nameInfo, mkNoSemanticInfo)
+import Language.Haskell.Tools.AST.SemaInfoTypes as AST (nameInfo, mkNoSemanticInfo, PreInstanceInfo(..))
+
+import Debug.Trace
 
 trfDecls :: TransformName n r => [LHsDecl n] -> Trf (AnnListG AST.UDecl (Dom r) RangeStage)
 trfDecls decls = addToCurrentScope decls $ makeIndentedListNewlineBefore atTheEnd (mapM trfDecl decls)
@@ -103,7 +105,7 @@ trfDeclsGroup g@(HsGroup vals splices tycls derivs fixities defaults foreigns wa
                                             [] -> convertionProblem "getDeclsToInsert: empty scope"
        where replaceNamesInDecls :: [GHC.Name] -> Ann AST.UDecl (Dom RdrName) RangeStage -> GHC.Ghc (Ann AST.UDecl (Dom r) RangeStage)
              replaceNamesInDecls locals = AST.semaTraverse $
-                AST.SemaTrf (pure . (AST.nameInfo .- findName)) pure pure (pure . fmap findName) pure pure pure
+                AST.SemaTrf (pure . (AST.nameInfo .- findName)) pure pure pure (pure . fmap findName) pure pure pure
                where findName rdr = fromGHCName $ fromMaybe (convProblem $ "Data definition name not found: " ++ showSDocUnsafe (ppr rdr)
                                                                              ++ ", locals: " ++ (concat $ intersperse ", " $ map (showSDocUnsafe . ppr) locals))
                                                 $ find ((occNameString (rdrNameOcc rdr) ==) . occNameString . nameOccName) locals
@@ -129,10 +131,10 @@ trfDecl = trfLocNoSema $ \case
                      <*> betweenIfPresent AnnClass AnnWhere (createDeclHead name vars)
                      <*> trfFunDeps funDeps
                      <*> createClassBody sigs defs typeFuns typeFunDefs
-  InstD (ClsInstD (ClsInstDecl typ binds sigs typefam datafam overlap))
-    -> AST.UInstDecl <$> trfMaybeDefault " " "" trfOverlap (after AnnInstance) overlap
-                    <*> trfInstanceRule (hsib_body typ)
-                    <*> trfInstBody binds sigs typefam datafam
+  InstD (ClsInstD cid)
+    -> AST.UInstDecl <$> (do
+      x <- trfClassInstanceDecl cid
+      traceShow (getRange x) (return x))
   InstD (DataFamInstD (DataFamInstDecl con pats _ (HsDataDefn nd _ _ _ cons derivs) _))
     | all ((\case ConDeclH98{} -> True; _ -> False) . unLoc) cons
     -> AST.UDataInstDecl <$> trfDataKeyword nd
@@ -283,6 +285,14 @@ trfDerivingStrategy = trfMaybeDefault " " ""
                                               AnyclassStrategy -> return AST.UAnyClassStrategy
                                               NewtypeStrategy -> return AST.UNewtypeStrategy)
                         atTheStart
+
+trfClassInstanceDecl :: TransformName n r => ClsInstDecl n -> Trf (Ann AST.UClassInstanceDecl (Dom r) RangeStage)
+trfClassInstanceDecl (ClsInstDecl typ binds sigs typefam datafam overlap) = annLocNoSema (pure instLoc) $
+  AST.UClassInstanceDecl <$> trfMaybeDefault " " "" trfOverlap (after AnnInstance) overlap
+                         <*> trfInstanceRule instRule
+                         <*> trfInstBody binds sigs typefam datafam
+  where instRule = hsib_body typ
+        instLoc  = getLoc instRule
 
 trfInstanceRule :: TransformName n r => Located (HsType n) -> Trf (Ann AST.UInstanceRule (Dom r) RangeStage)
 trfInstanceRule = trfLocNoSema (trfInstanceRule' . cleanHsType)

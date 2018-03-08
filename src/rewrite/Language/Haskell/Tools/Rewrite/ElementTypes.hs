@@ -112,6 +112,9 @@ type Deriving = Ann UDeriving IdDom SrcTemplateStage
 -- | A deriving strategy (@stock@, @newtype@ or @anyclass@)
 type DeriveStrategy = Ann UDeriveStrategy IdDom SrcTemplateStage
 
+-- | The instance declaration itself.
+type ClassInstanceDecl = Ann UClassInstanceDecl IdDom SrcTemplateStage
+
 -- | The instance declaration rule, which is, roughly, the part of the instance declaration before the where keyword.
 type InstanceRule = Ann UInstanceRule IdDom SrcTemplateStage
 

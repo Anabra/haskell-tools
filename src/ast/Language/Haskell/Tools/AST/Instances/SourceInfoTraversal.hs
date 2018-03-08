@@ -55,6 +55,7 @@ deriveSourceInfoTraversal ''UConDecl
 deriveSourceInfoTraversal ''UFieldDecl
 deriveSourceInfoTraversal ''UDeriving
 deriveSourceInfoTraversal ''UDeriveStrategy
+deriveSourceInfoTraversal ''UClassInstanceDecl
 deriveSourceInfoTraversal ''UInstanceRule
 deriveSourceInfoTraversal ''UInstanceHead
 deriveSourceInfoTraversal ''UTypeEqn

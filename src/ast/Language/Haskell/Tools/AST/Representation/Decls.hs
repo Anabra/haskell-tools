@@ -56,9 +56,7 @@ data UDecl dom stage
                           , _declFunDeps :: AnnMaybeG UFunDeps dom stage
                           , _declBody :: AnnMaybeG UClassBody dom stage
                           } -- ^ Type class declaration (@ class X a [where f = ...] @)
-  | UInstDecl             { _declOverlap :: AnnMaybeG UOverlapPragma dom stage
-                          , _declInstRule :: Ann UInstanceRule dom stage
-                          , _declInstDecl :: AnnMaybeG UInstBody dom stage
+  | UInstDecl             { _declClassInstanceDecl :: Ann UClassInstanceDecl dom stage
                           } -- ^ Instance declaration (@ instance X T [where f = ...] @)
   | UPatternSynonymDecl   { _declPatSyn :: Ann UPatternSynonym dom stage
                           } -- ^ Pattern synonyms (@ pattern Arrow t1 t2 = App "->" [t1, t2] @)
@@ -139,6 +137,13 @@ data UClassElement dom stage
   --               } -- ^ Pattern signature in a class declaration (by using @PatternSynonyms@)
 
 -- * Type class instances
+
+-- | The type-class instance declaration itself.
+data UClassInstanceDecl dom stage
+  = UClassInstanceDecl { _cidOverlap :: AnnMaybeG UOverlapPragma dom stage
+                       , _cidInstRule :: Ann UInstanceRule dom stage
+                       , _cidInstDecl :: AnnMaybeG UInstBody dom stage
+                       }
 
 -- | The instance declaration rule, which is, roughly, the part of the instance declaration before the where keyword.
 data UInstanceRule dom stage

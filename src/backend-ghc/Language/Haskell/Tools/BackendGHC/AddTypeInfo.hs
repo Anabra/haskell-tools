@@ -56,7 +56,7 @@ addTypeInfos bnds mod = do
                                                  ((_,id):more) -> do put (none ++ more)
                                                                      return $ createCName (AST.semanticsScope ni) (AST.semanticsDefining ni) id
                 _ -> convProblem "addTypeInfos: Cannot access a the semantics of a name.")
-      pure fetchLitType (traverse (lift . getType)) (traverse (lift . getType)) pure
+      pure fetchLitType undefined (traverse (lift . getType)) (traverse (lift . getType)) pure
         pure) mod) (extractSigIds bnds ++ extractSigBindIds bnds)
   where locMapping = Map.fromList $ map (\(L l id) -> (l, id)) $ extractExprIds bnds
         getType' ut name = fromMaybe (mkVanillaGlobal name ut) <$> ((<|> Map.lookup name ids) <$> getTopLevelId name)

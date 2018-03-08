@@ -16,7 +16,7 @@ mkTypeDecl dh typ = mkAnn (child <> " :: " <> child) $ UTypeDecl dh typ
 
 -- | Creates a standalone deriving declaration (@ deriving instance X T @)
 mkStandaloneDeriving :: Maybe DeriveStrategy -> Maybe OverlapPragma -> InstanceRule -> Decl
-mkStandaloneDeriving strat overlap instRule 
+mkStandaloneDeriving strat overlap instRule
   = mkAnn ("deriving instance" <> child <> child <> child)
       $ UDerivDecl (mkAnnMaybe (after " " opt) strat) (mkAnnMaybe (after " " opt) overlap) instRule
 
@@ -182,10 +182,14 @@ mkInfixDeclHead lhs op rhs = mkAnn (child <> " " <> child <> " " <> child) $ UDH
 
 -- * Type class instance declarations
 
--- | Creates a type class instance declaration (@ instance X T [where f = ...] @)
+-- | Creates a type class instance declaration wrapped inside a Decl (@ instance X T [where f = ...] @)
 mkInstanceDecl :: Maybe OverlapPragma -> InstanceRule -> Maybe InstBody -> Decl
-mkInstanceDecl overlap instRule body = mkAnn ("instance " <> child <> child <> child)
-                                 $ UInstDecl (mkAnnMaybe (after " " opt) overlap) instRule (mkAnnMaybe opt body)
+mkInstanceDecl overlap instRule body = mkAnn child . UInstDecl $ mkClassInstanceDecl overlap instRule body
+
+-- | Creates a bare type class instance declaration (@ instance X T [where f = ...] @)
+mkClassInstanceDecl :: Maybe OverlapPragma -> InstanceRule -> Maybe InstBody -> ClassInstanceDecl
+mkClassInstanceDecl overlap instRule body = mkAnn ("instance " <> child <> child <> child)
+                                $ UClassInstanceDecl (mkAnnMaybe (after " " opt) overlap) instRule (mkAnnMaybe opt body)
 
 -- | The instance declaration rule, which is, roughly, the part of the instance declaration before the where keyword.
 mkInstanceRule :: Maybe Context -> InstanceHead -> InstanceRule

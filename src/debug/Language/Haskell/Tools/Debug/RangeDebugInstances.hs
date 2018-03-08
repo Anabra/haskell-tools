@@ -56,6 +56,7 @@ instance (ShowSrcInfo st, Domain dom) => TreeDebug UConDecl dom st
 instance (ShowSrcInfo st, Domain dom) => TreeDebug UFieldDecl dom st
 instance (ShowSrcInfo st, Domain dom) => TreeDebug UDeriving dom st
 instance (ShowSrcInfo st, Domain dom) => TreeDebug UDeriveStrategy dom st
+instance (ShowSrcInfo st, Domain dom) => TreeDebug UClassInstanceDecl dom st
 instance (ShowSrcInfo st, Domain dom) => TreeDebug UInstanceRule dom st
 instance (ShowSrcInfo st, Domain dom) => TreeDebug UInstanceHead dom st
 instance (ShowSrcInfo st, Domain dom) => TreeDebug UTypeEqn dom st

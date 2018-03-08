@@ -1,14 +1,14 @@
-{-# LANGUAGE BangPatterns, DeriveDataTypeable, FlexibleContexts, StandaloneDeriving, TemplateHaskell, TypeSynonymInstances, UndecidableInstances, DeriveTraversable #-}
+{-# LANGUAGE BangPatterns, DeriveDataTypeable, FlexibleContexts, StandaloneDeriving, TemplateHaskell, TypeSynonymInstances, UndecidableInstances, DeriveTraversable, GeneralizedNewtypeDeriving #-}
 
 module Language.Haskell.Tools.AST.SemaInfoTypes
   ( -- types
     NoSemanticInfo, ScopeInfo, NameInfo, CNameInfo, ModuleInfo, ImportInfo, ImplicitFieldInfo
-  , Scope, UsageSpec(..), LiteralInfo(..), PreLiteralInfo(..)
+  , Scope, UsageSpec(..), LiteralInfo(..), PreLiteralInfo(..), PreInstanceInfo(..), InstanceInfo(..)
     -- references
   , exprScopedLocals, nameScopedLocals, nameIsDefined, nameInfo, ambiguousName, nameLocation
   , implicitName, cnameScopedLocals, cnameIsDefined, cnameInfo, cnameFixity
   , defModuleName, defDynFlags, defIsBootModule, implicitNames, importedModule, availableNames
-  , importedNames, implicitFieldBindings, prelTransMods, importTransMods, literalType
+  , importedNames, implicitFieldBindings, prelTransMods, importTransMods, literalType, instanceInfo
     -- creator functions
   , mkNoSemanticInfo, mkScopeInfo, mkNameInfo, mkAmbiguousNameInfo, mkImplicitNameInfo, mkCNameInfo
   , mkModuleInfo, mkImportInfo, mkImplicitFieldInfo
@@ -65,14 +65,22 @@ data ScopeInfo = ScopeInfo { _exprScopedLocals :: Scope
 mkScopeInfo :: Scope -> ScopeInfo
 mkScopeInfo = ScopeInfo
 
-data PreLiteralInfo = RealLiteralInfo { _realLiteralType :: Type
-                                      }
-                    | PreLiteralInfo { _preLiteralLoc :: SrcSpan
-                                     }
+
+-- | Stores the location of the instance.
+-- This will be used to determine the semantic info for it.
+data PreInstanceInfo = PreInstanceInfo { _preInstanceLoc :: SrcSpan }
   deriving Data
 
-data LiteralInfo = LiteralInfo { _literalType :: Type
-                               }
+-- | Stores a parameterized instance information (can be ClsInst or FamInst).
+newtype InstanceInfo a = InstanceInfo { _instanceInfo :: a }
+  deriving Data
+
+
+data PreLiteralInfo = RealLiteralInfo { _realLiteralType :: Type }
+                    | PreLiteralInfo  { _preLiteralLoc :: SrcSpan }
+  deriving Data
+
+data LiteralInfo = LiteralInfo { _literalType :: Type }
   deriving Data
 
 -- | Info corresponding to a name
@@ -194,4 +202,7 @@ makeReferences ''CNameInfo
 makeReferences ''ModuleInfo
 makeReferences ''ImportInfo
 makeReferences ''ImplicitFieldInfo
+makeReferences ''PreLiteralInfo
 makeReferences ''LiteralInfo
+makeReferences ''InstanceInfo
+makeReferences ''PreInstanceInfo

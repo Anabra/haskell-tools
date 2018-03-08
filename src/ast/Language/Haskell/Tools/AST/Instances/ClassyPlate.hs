@@ -65,6 +65,7 @@ makeClassyPlateConfig OnlyDirect [] ''UConDecl
 makeClassyPlateConfig OnlyDirect [] ''UFieldDecl
 makeClassyPlateConfig OnlyDirect [] ''UDeriving
 makeClassyPlateConfig OnlyDirect [] ''UDeriveStrategy
+makeClassyPlateConfig OnlyDirect [] ''UClassInstanceDecl
 makeClassyPlateConfig OnlyDirect [] ''UInstanceRule
 makeClassyPlateConfig OnlyDirect [] ''UInstanceHead
 makeClassyPlateConfig OnlyDirect [] ''UTypeEqn

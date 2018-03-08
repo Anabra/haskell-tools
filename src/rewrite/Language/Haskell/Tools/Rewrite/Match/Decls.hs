@@ -175,9 +175,13 @@ pattern InfixDeclHead lhs op rhs <- Ann _ (UDHInfix lhs op rhs)
 
 -- * Type class instance declarations
 
--- | Instance declaration (@ instance X T [where f = ...] @)
+-- | Instance declaration wrapped inside a Decl (@ instance X T [where f = ...] @)
 pattern InstanceDecl :: InstanceRule -> MaybeInstBody -> Decl
-pattern InstanceDecl instRule body <- Ann _ (UInstDecl _ instRule body)
+pattern InstanceDecl instRule body <- Ann _ (UInstDecl (ClassInstanceDecl instRule body))
+
+-- | Instance declaration by itself (@ instance X T [where f = ...] @)
+pattern ClassInstanceDecl :: InstanceRule -> MaybeInstBody -> ClassInstanceDecl
+pattern ClassInstanceDecl instRule body <- Ann _ (UClassInstanceDecl _ instRule body)
 
 -- | Instance body is the implementation of the class functions (@ where a x = 1; b x = 2 @)
 pattern InstanceBody :: InstBodyDeclList -> InstBody
